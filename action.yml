@@ -11,6 +11,8 @@ outputs:
     description: "The latest tag before running this action"
   part:
     description: "The part of version which was bumped"
+  release_branch:
+    description: "The release/x.y branch created on a major/minor bump"
 branding:
   icon: "git-merge"
   color: "purple"

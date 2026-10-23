@@ -15,9 +15,9 @@ setOutput() {
 git fetch --tags
 
 # Make sure you have the latest changes on the branch.
-# Needed for the make-release job which pushes a new commit before this.
-# A bit hacky - we'd rather pass in a optional commit hash to tag.
-git pull
+# Fast-forward only: a caller may have committed locally (e.g. a version bump commit), which we push
+# below with the tag. If the remote moved meanwhile, fail rather than merge.
+git pull --ff-only
 
 tagFmt="^v?[0-9]+\.[0-9]+\.[0-9]+$"
 
@@ -45,5 +45,14 @@ setOutput "new_tag" "$new_tag"
 setOutput "last_tag" "$last_tag"
 setOutput "part" "$bump"
 
+# Push the branch with its tag atomically, so workflows triggered by the branch push already see the
+# tag. On a major/minor bump, also create release/x.y at the previous tag.
+refspecs=("refs/tags/$new_tag" HEAD)
+if [ "$bump" != "patch" ]; then
+    release_branch="release/$(cut -d '.' -f 1,2 <<< "${last_tag#[vV]}")"
+    refspecs+=("${last_tag}^{commit}:refs/heads/${release_branch}")
+    setOutput "release_branch" "$release_branch"
+fi
+
 git tag "$new_tag" || exit 1
-git push origin "$new_tag" || exit 1
+git push --atomic origin "${refspecs[@]}" || exit 1
